@@ -1,116 +1,49 @@
 <!doctype html>
 <html lang="fr">
-<head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Vialogues Clone — Prototype V2</title>
-<style>
-body{font-family:Arial,Helvetica,sans-serif;background:#f3f4f6;margin:0;padding:0}
-.header{background:#fff;padding:12px 18px;box-shadow:0 1px 0 rgba(0,0,0,0.06);display:flex;justify-content:space-between;align-items:center}
-.container{max-width:1100px;margin:24px auto;padding:0 18px}
-.card{background:#fff;padding:12px;border-radius:6px;box-shadow:0 1px 3px rgba(0,0,0,0.06)}
-input,textarea,button,select{font-size:14px;padding:8px;margin-top:6px;width:100%}
-.row{display:flex;gap:12px}
-.col{flex:1}
-.project-item{padding:8px;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center}
-.btn{background:#2563eb;color:#fff;border:none;padding:8px 12px;border-radius:5px;cursor:pointer}
-.link{color:#2563eb;cursor:pointer;text-decoration:underline}
-.annotations{max-height:60vh;overflow:auto}
-.annotation{border-bottom:1px solid #eee;padding:8px}
-.small{font-size:12px;color:#666}
-.video-player{background:#000;padding:8px;border-radius:6px}
-.badge{display:inline-block;padding:2px 6px;border-radius:4px;background:#e5e7eb;margin-left:6px;font-size:12px}
-.reply{margin-left:16px;border-left:2px solid #eee;padding-left:8px}
-</style>
-</head>
-<body>
-<header class="header"><div style="font-weight:600">Vialogues Clone</div><div id="userbox"></div></header>
-<main class="container">
-<div id="app"></div>
-</main>
+<head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>Vialogues Clone — V4</title>
+<style>body{font-family:Arial,Helvetica,sans-serif;background:#f3f4f6;margin:0;padding:0}.header{background:#fff;padding:12px 18px;box-shadow:0 1px 0 rgba(0,0,0,0.06);display:flex;justify-content:space-between;align-items:center}.container{max-width:1100px;margin:24px auto;padding:0 18px}.card{background:#fff;padding:12px;border-radius:6px;box-shadow:0 1px 3px rgba(0,0,0,0.06)}input,textarea,button,select{font-size:14px;padding:8px;margin-top:6px;width:100%}.row{display:flex;gap:12px}.col{flex:1}.project-item{padding:8px;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center}.btn{background:#2563eb;color:#fff;border:none;padding:8px 12px;border-radius:5px;cursor:pointer}.link{color:#2563eb;cursor:pointer;text-decoration:underline}.annotations{max-height:60vh;overflow:auto}.annotation{border-bottom:1px solid #eee;padding:8px}.small{font-size:12px;color:#666}.video-player{background:#000;padding:8px;border-radius:6px}.badge{display:inline-block;padding:2px 6px;border-radius:4px;background:#e5e7eb;margin-left:6px;font-size:12px}.reply{margin-left:16px;border-left:2px solid #eee;padding-left:8px}.table{width:100%;border-collapse:collapse}.table th, .table td{border:1px solid #eee;padding:6px;text-align:left}</style></head>
+<body><header class="header"><div style="font-weight:600">Vialogues Clone</div><div id="userbox"></div></header><main class="container"><div id="app"></div></main>
 <script>
 const API_BASE = ''
 
 function saveToken(t){ localStorage.setItem('vj_token', t); }
 function getToken(){ return localStorage.getItem('vj_token'); }
-function api(path, opts={}){
-  opts.headers = opts.headers || {}
-  const token = getToken()
-  if (token) opts.headers['Authorization'] = 'Bearer ' + token
-  if (!opts.method) opts.method = 'GET'
-  return fetch('/api'+path, opts).then(async r=>{ const txt=await r.text(); try{return JSON.parse(txt)}catch{return txt} })
-}
+function api(path, opts={}){ opts.headers = opts.headers || {}; const token = getToken(); if (token) opts.headers['Authorization'] = 'Bearer ' + token; if (!opts.method) opts.method = 'GET'; return fetch('/api'+path, opts).then(async r=>{ const txt=await r.text(); try{return JSON.parse(txt)}catch{return txt} }) }
 
-function setUserBox(user){
-  const box = document.getElementById('userbox')
-  if (user){
-    box.innerHTML = '<span class="small">connecté: '+(user.display_name||user.email)+'</span> <button class="btn" onclick="logout()">Déconnexion</button>'
-  } else {
-    box.innerHTML = '<button class="btn" onclick="navigate(\'#/login\')">Se connecter</button>'
-  }
-}
+function setUserBox(user){ const box = document.getElementById('userbox'); if (user){ box.innerHTML = '<span class="small">connecté: '+(user.display_name||user.email)+'</span> <button class="btn" onclick="logout()">Déconnexion</button>' } else { box.innerHTML = '<button class="btn" onclick="navigate(\'#/login\')">Se connecter</button>' } }
 function logout(){ localStorage.removeItem('vj_token'); localStorage.removeItem('vj_user'); setUserBox(null); navigate('#/login') }
-
 function navigate(hash){ window.location.hash = hash; render() }
 window.addEventListener('hashchange', render)
 
-async function pageLogin(){
-  const html = `
+async function pageLogin(){ return `
   <div class="card" style="max-width:420px;margin:0 auto">
     <h2>Connexion</h2>
     <div id="err" class="small" style="color:red"></div>
     <input id="email" placeholder="Email" value="demo@vialogues.local"/>
     <input id="password" placeholder="Mot de passe" type="password" value="admin123"/>
     <button class="btn" id="loginBtn">Se connecter</button>
-  </div>`
-  return html
-}
+  </div>` }
 
-async function actionLogin(){
-  const email = document.getElementById('email').value
-  const password = document.getElementById('password').value
-  const res = await fetch('/api/auth/login', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({email,password})})
-  const data = await res.json()
-  if (res.status!==200){ document.getElementById('err').innerText = data.error || 'Erreur' ; return }
-  saveToken(data.token)
-  localStorage.setItem('vj_user', JSON.stringify(data.user))
-  setUserBox(data.user)
-  navigate('#/projects')
-}
+async function actionLogin(){ const email = document.getElementById('email').value; const password = document.getElementById('password').value; const res = await fetch('/api/auth/login', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({email,password})}); const data = await res.json(); if (res.status!==200){ document.getElementById('err').innerText = data.error || 'Erreur' ; return } saveToken(data.token); localStorage.setItem('vj_user', JSON.stringify(data.user)); setUserBox(data.user); navigate('#/projects') }
 
-async function pageProjects(){
-  const resp = await api('/projects')
-  let list = ''
-  if (Array.isArray(resp)) {
-    list = resp.map(p=>`<div class="project-item"><div><strong>${p.title||'Sans titre'}</strong><div class="small">Code: <span class="badge">${p.code||''}</span></div><div class="small">${p.description||''}</div></div><div><a class="link" onclick="navigate('#/project/${p.id}')">Ouvrir</a></div></div>`).join('')
-  } else list = '<div class="small">Aucun projet ou erreur</div>'
-  const html = `
+async function pageProjects(){ const resp = await api('/projects'); let list = ''; if (Array.isArray(resp)) { list = resp.map(p=>`<div class="project-item"><div><strong>${p.title||'Sans titre'}</strong><div class="small">Code: <span class="badge">${p.code||''}</span></div><div class="small">${p.description||''}</div></div><div><a class="link" onclick="navigate('#/project/${p.id}')">Ouvrir</a></div></div>`).join('') } else list = '<div class="small">Aucun projet ou erreur</div>'; return `
   <div class="card">
     <h2>Mes projets</h2>
     <div style="margin-bottom:12px">
       <input id="proj_title" placeholder="Titre du projet"/><textarea id="proj_desc" placeholder="Description"></textarea>
       <button class="btn" id="createProj">Créer le projet</button>
     </div>
+    <div style="margin-bottom:12px;display:flex;gap:8px"><button class="btn" onclick="navigate('#/admin/projects')">Administration globale</button></div>
     <div>${list}</div>
-  </div>`
-  return html
-}
+  </div>` }
 
-async function actionCreateProject(){
-  const title = document.getElementById('proj_title').value
-  const description = document.getElementById('proj_desc').value
-  const res = await fetch('/api/projects', {method:'POST', headers:{'Content-Type':'application/json', 'Authorization':'Bearer '+getToken()}, body: JSON.stringify({title,description})})
-  const pj = await res.json()
-  navigate('#/projects')
-}
+async function actionCreateProject(){ const title = document.getElementById('proj_title').value; const description = document.getElementById('proj_desc').value; await fetch('/api/projects', {method:'POST', headers:{'Content-Type':'application/json', 'Authorization':'Bearer '+getToken()}, body: JSON.stringify({title,description})}); navigate('#/projects') }
 
-async function pageProject(projectId){
-  const resp = await api('/projects')
-  const p = resp.find(x=>String(x.id) === String(projectId))
-  const videos = await api('/videos/project/'+projectId)
-  let vids = ''
-  if (Array.isArray(videos)) vids = videos.map(v=>`<div class="project-item"><div><strong>${v.title||v.filename}</strong><div class="small">${v.description||''}</div></div><div><a class="link" onclick="navigate('#/project/${projectId}/video/${v.id}')">Ouvrir</a></div></div>`).join('')
-  const html = `
+// Global admin page: list all projects (admin only)
+async function pageAdminProjects(){ const resp = await api('/admin/projects'); if (resp.error){ return `<div class="card"><div class="small">Accès refusé ou erreur</div></div>` } const rows = Array.isArray(resp) ? resp.map(r=>`<tr><td>${r.id}</td><td>${r.title||''}</td><td>${r.code||''}</td><td>${r.videos||0}</td><td>${r.annotations||0}</td><td><a class="link" onclick="navigate('#/project/${r.id}')">Ouvrir</a></td></tr>`).join('') : ''; return `
+  <div class="card"><h2>Administration globale — Projets</h2><table class="table"><thead><tr><th>ID</th><th>Titre</th><th>Code</th><th># Vidéos</th><th># Annotations</th><th>Action</th></tr></thead><tbody>${rows}</tbody></table></div>` }
+
+async function pageProject(projectId){ const resp = await api('/projects'); const p = resp.find(x=>String(x.id) === String(projectId)); const videos = await api('/videos/project/'+projectId); let vids = ''; if (Array.isArray(videos)) vids = videos.map(v=>`<div class="project-item"><div><strong>${v.title||v.filename}</strong><div class="small">${v.description||''}</div></div><div><a class="link" onclick="navigate('#/project/${projectId}/video/${v.id}')">Ouvrir</a></div></div>`).join(''); return `
   <div class="card">
     <h2>Projet: ${p ? p.title : projectId} <span class="badge">${p ? p.code : ''}</span></h2>
     <div style="margin-bottom:12px">
@@ -121,49 +54,39 @@ async function pageProject(projectId){
         <button class="btn" type="button" id="uploadBtn">Uploader</button>
       </form>
     </div>
-    <div>
+    <div style="margin-top:12px;display:flex;gap:8px">
+      <button class="btn" onclick="navigate('#/project/${projectId}/admin')">Administration</button>
+      <button class="btn" onclick="exportCSV(${projectId})">Exporter les annotations (CSV)</button>
+    </div>
+    <div style="margin-top:12px">
       <h3>Vidéos</h3>
       ${vids||'<div class="small">Aucune vidéo</div>'}
     </div>
-  </div>`
-  return html
-}
+  </div>` }
 
-async function actionUpload(projectId){
-  const fileInp = document.getElementById('v_file')
-  if (!fileInp.files.length){ alert('Choisir un fichier'); return }
-  const form = new FormData()
-  form.append('video', fileInp.files[0])
-  form.append('project_id', projectId)
-  form.append('title', document.getElementById('v_title').value)
-  form.append('description', document.getElementById('v_desc').value)
-  const res = await fetch('/api/videos/upload', {method:'POST', headers: {'Authorization':'Bearer '+getToken()}, body: form})
-  const data = await res.json()
-  if (res.status===200) { alert('Vidéo uploadée'); navigate('#/project/'+projectId) } else alert('Erreur: '+(data.error||JSON.stringify(data)))
-}
+async function exportCSV(projectId){ const token = getToken(); const res = await fetch('/api/annotations/export/'+projectId, {headers: {'Authorization':'Bearer '+token}}); if (res.status!==200){ alert('Erreur export'); return } const blob = await res.blob(); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `annotations_project_${projectId}.csv`; document.body.appendChild(a); a.click(); a.remove() }
 
-function renderAnnotation(a, videoId, projectId){
-  const replies = a.replies || []
-  const html = `
+async function pageAdmin(projectId){ const members = await api('/projects/'+projectId+'/members'); let rows = ''; if (Array.isArray(members)) rows = members.map(m=>`<tr><td>${m.email}</td><td>${m.display_name||''}</td><td>${m.role}</td><td><button class="btn" onclick="removeMember(${projectId}, ${m.id})">Supprimer</button></td></tr>`).join(''); return `
+  <div class="card">
+    <h2>Administration du projet</h2>
+    <div style="margin-bottom:12px"><input id="member_email" placeholder="Email à ajouter"/><select id="member_role"><option value="annotator">Annotateur</option><option value="reader">Lecteur</option><option value="admin">Admin</option></select><button class="btn" id="addMember">Ajouter (envoi d'un lien d'invitation)</button></div>
+    <table class="table"><thead><tr><th>Email</th><th>Nom</th><th>Rôle</th><th>Action</th></tr></thead><tbody>${rows}</tbody></table>
+  </div>` }
+
+async function addMember(projectId){ const email = document.getElementById('member_email').value; const role = document.getElementById('member_role').value; const res = await fetch('/api/projects/'+projectId+'/members', {method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+getToken()}, body: JSON.stringify({email, role})}); const data = await res.json(); if (res.status===200 || data.ok) { alert('Membre ajouté. Un lien d'invitation a été envoyé (si SMTP configuré).\nLien (debug): '+(data.inviteLink||'')); navigate('#/project/'+projectId+'/admin') } else alert('Erreur') }
+
+async function removeMember(projectId, userId){ const res = await fetch('/api/projects/'+projectId+'/members/'+userId, {method:'DELETE', headers:{'Authorization':'Bearer '+getToken()}}); if (res.status===200) { alert('Membre supprimé'); navigate('#/project/'+projectId+'/admin') } else alert('Erreur') }
+
+function renderAnnotation(a, videoId, projectId){ const replies = a.replies || []; const html = `
     <div class="annotation" id="ann-${a.id}">
-      <div class="small">${a.display_name||'Anonyme'} — ${a.time_seconds}s <span class="badge">${a.category||''}</span></div>
+      <div class="small"><a class="link" onclick="jumpTo(${a.time_seconds})">${a.time_seconds}s</a> — ${a.display_name||'Anonyme'} <span class="badge">${a.category||''}</span></div>
       <div>${a.content}</div>
       <div class="small"><a class="link" onclick="showReply(${a.id})">Répondre</a></div>
-      <div id="replies-${a.id}">${replies.map(r=>'<div class="reply"><div class="small">'+(r.display_name||'Anonyme')+' — '+r.time_seconds+'s</div><div>'+r.content+'</div></div>').join('')}</div>
+      <div id="replies-${a.id}">${replies.map(r=>'<div class="reply"><div class="small"><a class="link" onclick="jumpTo('+r.time_seconds+')">'+r.time_seconds+'s</a> — '+(r.display_name||'Anonyme')+'</div><div>'+r.content+'</div></div>').join('')}</div>
     </div>
-  `
-  return html
-}
+  `; return html }
 
-async function pageVideo(projectId, videoId){
-  const v = await api('/videos/'+videoId)
-  const anns = await api('/annotations/video/'+videoId) || []
-  const map = {}
-  anns.forEach(a=>{ a.replies = []; map[a.id]=a })
-  anns.forEach(a=>{ if (a.parent_id && map[a.parent_id]) map[a.parent_id].replies.push(a) })
-  const top = anns.filter(a=>!a.parent_id)
-  let annHtml = top.map(a=>renderAnnotation(a, videoId, projectId)).join('') || '<div class="small">Aucune annotation</div>'
-  const html = `
+async function pageVideo(projectId, videoId){ const v = await api('/videos/'+videoId); const anns = await api('/annotations/video/'+videoId) || []; const map = {}; anns.forEach(a=>{ a.replies = []; map[a.id]=a }); anns.forEach(a=>{ if (a.parent_id && map[a.parent_id]) map[a.parent_id].replies.push(a) }); const top = anns.filter(a=>!a.parent_id); let annHtml = top.map(a=>renderAnnotation(a, videoId, projectId)).join('') || '<div class="small">Aucune annotation</div>'; return `
   <div class="row">
     <div class="col card">
       <h3>Vidéo: ${v.title||v.filename}</h3>
@@ -179,80 +102,28 @@ async function pageVideo(projectId, videoId){
       <h3>Annotations</h3>
       <div class="annotations">${annHtml}</div>
     </div>
-  </div>`
-  return html
-}
+  </div>` }
 
-function showReply(parentId){
-  const node = document.getElementById('replies-'+parentId)
-  if (!document.getElementById('replybox-'+parentId)){
-    const box = document.createElement('div')
-    box.innerHTML = '<textarea id="replybox-'+parentId+'" placeholder="Réponse..."></textarea><button class="btn" onclick="submitReply('+parentId+')">Envoyer</button>'
-    node.insertBefore(box, node.firstChild)
-  }
-}
+function showReply(parentId){ const node = document.getElementById('replies-'+parentId); if (!document.getElementById('replybox-'+parentId)){ const box = document.createElement('div'); box.innerHTML = '<textarea id="replybox-'+parentId+'" placeholder="Réponse..."></textarea><button class="btn" onclick="submitReply('+parentId+')">Envoyer</button>'; node.insertBefore(box, node.firstChild) } }
 
-async function submitReply(parentId){
-  const text = document.getElementById('replybox-'+parentId).value
-  if (!text) return alert('Texte vide')
-  const parts = location.hash.split('/')
-  const projectId = parts[2]
-  const videoId = parts[4]
-  const res = await fetch('/api/annotations', {method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+getToken()}, body: JSON.stringify({video_id:videoId, time_seconds:0, content:text, parent_id:parentId, category:'Réponse'})})
-  if (res.status===200) { alert('Réponse ajoutée'); navigate('#/project/'+projectId+'/video/'+videoId) } else alert('Erreur')
-}
+async function submitReply(parentId){ const text = document.getElementById('replybox-'+parentId).value; if (!text) return alert('Texte vide'); const parts = location.hash.split('/'); const projectId = parts[2]; const videoId = parts[4]; const res = await fetch('/api/annotations', {method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+getToken()}, body: JSON.stringify({video_id:videoId, time_seconds:0, content:text, parent_id:parentId, category:'Réponse'})}); if (res.status===200) { alert('Réponse ajoutée'); navigate('#/project/'+projectId+'/video/'+videoId) } else alert('Erreur') }
 
-async function actionAddAnnotation(projectId, videoId){
-  const time = Number(document.getElementById('ann_time').value)
-  const text = document.getElementById('ann_text').value
-  const cat = document.getElementById('ann_cat').value
-  const res = await fetch('/api/annotations', {method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+getToken()}, body: JSON.stringify({video_id:videoId, time_seconds:time, content:text, category:cat})})
-  if (res.status===200) { alert('Annotation ajoutée'); navigate('#/project/'+projectId+'/video/'+videoId) } else alert('Erreur')
-}
+async function actionAddAnnotation(projectId, videoId){ const time = Number(document.getElementById('ann_time').value); const text = document.getElementById('ann_text').value; const cat = document.getElementById('ann_cat').value; const res = await fetch('/api/annotations', {method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+getToken()}, body: JSON.stringify({video_id:videoId, time_seconds:time, content:text, category:cat})}); if (res.status===200) { alert('Annotation ajoutée'); navigate('#/project/'+projectId+'/video/'+videoId) } else alert('Erreur') }
 
 function jumpTo(s){ const p = document.getElementById('player'); if (p) p.currentTime = s }
 
-async function render(){
-  const hash = location.hash || '#/login'
-  const user = JSON.parse(localStorage.getItem('vj_user')||'null')
-  setUserBox(user)
-  const app = document.getElementById('app')
-  if (hash.startsWith('#/login')) {
-    app.innerHTML = await pageLogin()
-    document.getElementById('loginBtn').addEventListener('click', actionLogin)
-  } else if (hash.startsWith('#/projects')) {
-    app.innerHTML = await pageProjects()
-    document.getElementById('createProj').addEventListener('click', actionCreateProject)
-  } else if (hash.startsWith('#/project/') && hash.split('/').length===3) {
-    const parts = hash.split('/')
-    const projectId = parts[2]
-    app.innerHTML = await pageProject(projectId)
-    document.getElementById('uploadBtn').addEventListener('click', ()=>actionUpload(projectId))
-  } else if (hash.startsWith('#/project/') && hash.includes('/video/')) {
-    const parts = hash.split('/')
-    const projectId = parts[2]
-    const videoId = parts[4]
-    app.innerHTML = await pageVideo(projectId, videoId)
-    document.getElementById('grabTime')?.addEventListener('click', ()=>{
-      const p = document.getElementById('player'); if (p) document.getElementById('ann_time').value = Math.floor(p.currentTime)
-    })
-    document.getElementById('addAnn')?.addEventListener('click', ()=>actionAddAnnotation(projectId, videoId))
-  } else {
-    navigate('#/login')
-  }
-}
+// Invite page: read token, validate, accept (set password)
+async function pageInvite(){ const params = new URLSearchParams(location.search); const token = params.get('token'); if (!token) return `<div class="card"><div class="small">Lien invalide</div></div>`; const val = await fetch('/api/invite/validate?token='+encodeURIComponent(token)).then(r=>r.json()).catch(()=>({error:'invalid'})); if (val.error) return `<div class="card"><div class="small">Lien invalide ou expiré</div></div>`; return `
+  <div class="card" style="max-width:540px;margin:0 auto">
+    <h2>Activation du compte pour ${val.email}</h2>
+    <input id="invite_name" placeholder="Votre nom (affiché)"/>
+    <input id="invite_pass" placeholder="Mot de passe" type="password"/>
+    <button class="btn" id="acceptInvite">Activer le compte</button>
+  </div>` }
 
-document.addEventListener('DOMContentLoaded', ()=>{
-  const token = getToken()
-  if (token) {
-    const u = JSON.parse(localStorage.getItem('vj_user')||'null')
-    setUserBox(u)
-    if (!location.hash) navigate('#/projects')
-  } else {
-    if (!location.hash) navigate('#/login')
-  }
-  render()
-})
-</script>
-</body>
-</html>
+async function actionAcceptInvite(){ const params = new URLSearchParams(location.search); const token = params.get('token'); const password = document.getElementById('invite_pass').value; const name = document.getElementById('invite_name').value; const res = await fetch('/api/invite/accept', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({token, password, display_name: name})}); const data = await res.json(); if (res.status===200 && data.ok) { alert('Compte activé — connectez-vous'); navigate('#/login') } else alert('Erreur: '+(data.error||'')) }
+
+async function render(){ const hash = location.hash || '#/login'; const user = JSON.parse(localStorage.getItem('vj_user')||'null'); setUserBox(user); const app = document.getElementById('app'); if (location.pathname.startsWith('/invite')) { app.innerHTML = await pageInvite(); document.getElementById('acceptInvite')?.addEventListener('click', actionAcceptInvite); return } if (hash.startsWith('#/login')) { app.innerHTML = await pageLogin(); document.getElementById('loginBtn').addEventListener('click', actionLogin) } else if (hash.startsWith('#/projects')) { app.innerHTML = await pageProjects(); document.getElementById('createProj').addEventListener('click', actionCreateProject) } else if (hash.startsWith('#/admin/projects')) { app.innerHTML = await pageAdminProjects() } else if (hash.startsWith('#/project/') && hash.split('/').length===3) { const parts = hash.split('/'); const projectId = parts[2]; app.innerHTML = await pageProject(projectId); document.getElementById('uploadBtn').addEventListener('click', ()=>actionUpload(projectId)) } else if (hash.startsWith('#/project/') && hash.includes('/admin')) { const parts = hash.split('/'); const projectId = parts[2]; app.innerHTML = await pageAdmin(projectId); document.getElementById('addMember')?.addEventListener('click', ()=>addMember(projectId)) } else if (hash.startsWith('#/project/') && hash.includes('/video/')) { const parts = hash.split('/'); const projectId = parts[2]; const videoId = parts[4]; app.innerHTML = await pageVideo(projectId, videoId); document.getElementById('grabTime')?.addEventListener('click', ()=>{ const p = document.getElementById('player'); if (p) document.getElementById('ann_time').value = Math.floor(p.currentTime) }); document.getElementById('addAnn')?.addEventListener('click', ()=>actionAddAnnotation(projectId, videoId)) } else { navigate('#/projects') } }
+
+document.addEventListener('DOMContentLoaded', ()=>{ const token = getToken(); if (token) { const u = JSON.parse(localStorage.getItem('vj_user')||'null'); setUserBox(u); if (!location.hash) navigate('#/projects') } else { if (!location.hash) navigate('#/login') } render() })
+</script></body></html>

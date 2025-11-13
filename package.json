@@ -1,6 +1,6 @@
 {
-  "name": "vialogues-v2-collab",
-  "version": "0.2.0",
+  "name": "vialogues-v4-admin-invite",
+  "version": "0.4.0",
   "main": "index.js",
   "type": "module",
   "scripts": {
