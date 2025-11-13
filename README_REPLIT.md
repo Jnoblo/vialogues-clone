@@ -1,14 +1,10 @@
-# Vialogues Clone — Version Replit (SQLite intégrée)
+Vialogues Clone — Full UI (Replit-ready)
 
-## 🚀 Lancement sur Replit
+Demo admin:
+- email: demo@vialogues.local
+- password: admin123
 
-1. Importez ce fichier ZIP sur [https://replit.com](https://replit.com)
-2. Ouvrez le projet et cliquez sur **Run**
-3. Le serveur démarre automatiquement et crée une base SQLite (`db.sqlite`)
-4. L'application s'affiche sur une URL publique Replit (ex: https://vialogues-clone.yourname.repl.co)
-
-### 🧠 Compte démo
-- **Email** : demo@vialogues.local
-- **Mot de passe** : admin123
-- Rôle : administrateur
-
+Run:
+npm install
+npm start
+Open at http://localhost:4000 or use Replit public URL.
