@@ -1,6 +1,6 @@
 {
-  "name": "vialogues-full-ui",
-  "version": "0.1.0",
+  "name": "vialogues-v2-collab",
+  "version": "0.2.0",
   "main": "index.js",
   "type": "module",
   "scripts": {
@@ -12,6 +12,7 @@
     "better-sqlite3": "^9.0.0",
     "bcrypt": "^5.1.0",
     "jsonwebtoken": "^9.0.0",
-    "multer": "^1.4.5-lts.1"
+    "multer": "^1.4.5-lts.1",
+    "nodemailer": "^6.9.4"
   }
 }

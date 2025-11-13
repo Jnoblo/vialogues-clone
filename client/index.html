@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Vialogues Clone — Prototype</title>
+<title>Vialogues Clone — Prototype V2</title>
 <style>
 body{font-family:Arial,Helvetica,sans-serif;background:#f3f4f6;margin:0;padding:0}
 .header{background:#fff;padding:12px 18px;box-shadow:0 1px 0 rgba(0,0,0,0.06);display:flex;justify-content:space-between;align-items:center}
@@ -19,6 +19,8 @@ input,textarea,button,select{font-size:14px;padding:8px;margin-top:6px;width:100
 .annotation{border-bottom:1px solid #eee;padding:8px}
 .small{font-size:12px;color:#666}
 .video-player{background:#000;padding:8px;border-radius:6px}
+.badge{display:inline-block;padding:2px 6px;border-radius:4px;background:#e5e7eb;margin-left:6px;font-size:12px}
+.reply{margin-left:16px;border-left:2px solid #eee;padding-left:8px}
 </style>
 </head>
 <body>
@@ -36,10 +38,7 @@ function api(path, opts={}){
   const token = getToken()
   if (token) opts.headers['Authorization'] = 'Bearer ' + token
   if (!opts.method) opts.method = 'GET'
-  return fetch('/api'+path, opts).then(async r=>{
-    const txt = await r.text()
-    try{ return JSON.parse(txt) } catch { return txt }
-  })
+  return fetch('/api'+path, opts).then(async r=>{ const txt=await r.text(); try{return JSON.parse(txt)}catch{return txt} })
 }
 
 function setUserBox(user){
@@ -52,10 +51,7 @@ function setUserBox(user){
 }
 function logout(){ localStorage.removeItem('vj_token'); localStorage.removeItem('vj_user'); setUserBox(null); navigate('#/login') }
 
-function navigate(hash){
-  window.location.hash = hash
-  render()
-}
+function navigate(hash){ window.location.hash = hash; render() }
 window.addEventListener('hashchange', render)
 
 async function pageLogin(){
@@ -86,7 +82,7 @@ async function pageProjects(){
   const resp = await api('/projects')
   let list = ''
   if (Array.isArray(resp)) {
-    list = resp.map(p=>`<div class="project-item"><div><strong>${p.title||'Sans titre'}</strong><div class="small">${p.description||''}</div></div><div><a class="link" onclick="navigate('#/project/${p.id}')">Ouvrir</a></div></div>`).join('')
+    list = resp.map(p=>`<div class="project-item"><div><strong>${p.title||'Sans titre'}</strong><div class="small">Code: <span class="badge">${p.code||''}</span></div><div class="small">${p.description||''}</div></div><div><a class="link" onclick="navigate('#/project/${p.id}')">Ouvrir</a></div></div>`).join('')
   } else list = '<div class="small">Aucun projet ou erreur</div>'
   const html = `
   <div class="card">
@@ -116,7 +112,7 @@ async function pageProject(projectId){
   if (Array.isArray(videos)) vids = videos.map(v=>`<div class="project-item"><div><strong>${v.title||v.filename}</strong><div class="small">${v.description||''}</div></div><div><a class="link" onclick="navigate('#/project/${projectId}/video/${v.id}')">Ouvrir</a></div></div>`).join('')
   const html = `
   <div class="card">
-    <h2>Projet: ${p ? p.title : projectId}</h2>
+    <h2>Projet: ${p ? p.title : projectId} <span class="badge">${p ? p.code : ''}</span></h2>
     <div style="margin-bottom:12px">
       <h3>Uploader une vidéo</h3>
       <form id="uploadForm">
@@ -146,35 +142,71 @@ async function actionUpload(projectId){
   if (res.status===200) { alert('Vidéo uploadée'); navigate('#/project/'+projectId) } else alert('Erreur: '+(data.error||JSON.stringify(data)))
 }
 
+function renderAnnotation(a, videoId, projectId){
+  const replies = a.replies || []
+  const html = `
+    <div class="annotation" id="ann-${a.id}">
+      <div class="small">${a.display_name||'Anonyme'} — ${a.time_seconds}s <span class="badge">${a.category||''}</span></div>
+      <div>${a.content}</div>
+      <div class="small"><a class="link" onclick="showReply(${a.id})">Répondre</a></div>
+      <div id="replies-${a.id}">${replies.map(r=>'<div class="reply"><div class="small">'+(r.display_name||'Anonyme')+' — '+r.time_seconds+'s</div><div>'+r.content+'</div></div>').join('')}</div>
+    </div>
+  `
+  return html
+}
+
 async function pageVideo(projectId, videoId){
   const v = await api('/videos/'+videoId)
-  const anns = await api('/annotations/video/'+videoId)
-  let annHtml = ''
-  if (Array.isArray(anns)) annHtml = anns.map(a=>`<div class="annotation"><div class="small">${a.display_name||'Anonyme'} — ${a.time_seconds}s</div><div>${a.content}</div><div><a class="link" onclick="jumpTo(${a.time_seconds})">Aller au timecode</a></div></div>`).join('')
+  const anns = await api('/annotations/video/'+videoId) || []
+  const map = {}
+  anns.forEach(a=>{ a.replies = []; map[a.id]=a })
+  anns.forEach(a=>{ if (a.parent_id && map[a.parent_id]) map[a.parent_id].replies.push(a) })
+  const top = anns.filter(a=>!a.parent_id)
+  let annHtml = top.map(a=>renderAnnotation(a, videoId, projectId)).join('') || '<div class="small">Aucune annotation</div>'
   const html = `
   <div class="row">
     <div class="col card">
       <h3>Vidéo: ${v.title||v.filename}</h3>
       <div class="video-player"><video id="player" controls width="100%"><source src="/uploads/${v.filename}" type="video/mp4">Votre navigateur ne supporte pas la vidéo.</video></div>
       <div style="margin-top:8px">
-        <input id="ann_time" placeholder="Time (s)" type="number"/>
+        <div class="row"><div class="col"><input id="ann_time" placeholder="Time (s)" type="number"/></div><div style="width:180px"><button class="btn" id="grabTime">🕒 Récupérer le temps du lecteur</button></div></div>
+        <select id="ann_cat"><option value="">-- Catégorie --</option><option>Commentaire</option><option>Question</option><option>Réponse</option><option>Ressource</option></select>
         <textarea id="ann_text" placeholder="Texte annotation"></textarea>
         <button class="btn" id="addAnn">Ajouter annotation</button>
       </div>
     </div>
     <div class="col card">
       <h3>Annotations</h3>
-      <div class="annotations">${annHtml||'<div class="small">Aucune annotation</div>'}</div>
+      <div class="annotations">${annHtml}</div>
     </div>
   </div>`
   return html
 }
 
+function showReply(parentId){
+  const node = document.getElementById('replies-'+parentId)
+  if (!document.getElementById('replybox-'+parentId)){
+    const box = document.createElement('div')
+    box.innerHTML = '<textarea id="replybox-'+parentId+'" placeholder="Réponse..."></textarea><button class="btn" onclick="submitReply('+parentId+')">Envoyer</button>'
+    node.insertBefore(box, node.firstChild)
+  }
+}
+
+async function submitReply(parentId){
+  const text = document.getElementById('replybox-'+parentId).value
+  if (!text) return alert('Texte vide')
+  const parts = location.hash.split('/')
+  const projectId = parts[2]
+  const videoId = parts[4]
+  const res = await fetch('/api/annotations', {method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+getToken()}, body: JSON.stringify({video_id:videoId, time_seconds:0, content:text, parent_id:parentId, category:'Réponse'})})
+  if (res.status===200) { alert('Réponse ajoutée'); navigate('#/project/'+projectId+'/video/'+videoId) } else alert('Erreur')
+}
+
 async function actionAddAnnotation(projectId, videoId){
   const time = Number(document.getElementById('ann_time').value)
   const text = document.getElementById('ann_text').value
-  const res = await fetch('/api/annotations', {method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+getToken()}, body: JSON.stringify({video_id:videoId, time_seconds:time, content:text})})
-  const data = await res.json()
+  const cat = document.getElementById('ann_cat').value
+  const res = await fetch('/api/annotations', {method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+getToken()}, body: JSON.stringify({video_id:videoId, time_seconds:time, content:text, category:cat})})
   if (res.status===200) { alert('Annotation ajoutée'); navigate('#/project/'+projectId+'/video/'+videoId) } else alert('Erreur')
 }
 
@@ -201,7 +233,10 @@ async function render(){
     const projectId = parts[2]
     const videoId = parts[4]
     app.innerHTML = await pageVideo(projectId, videoId)
-    document.getElementById('addAnn').addEventListener('click', ()=>actionAddAnnotation(projectId, videoId))
+    document.getElementById('grabTime')?.addEventListener('click', ()=>{
+      const p = document.getElementById('player'); if (p) document.getElementById('ann_time').value = Math.floor(p.currentTime)
+    })
+    document.getElementById('addAnn')?.addEventListener('click', ()=>actionAddAnnotation(projectId, videoId))
   } else {
     navigate('#/login')
   }

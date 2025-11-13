@@ -6,6 +6,7 @@ import path from 'path'
 import jwt from 'jsonwebtoken'
 import bcrypt from 'bcrypt'
 import multer from 'multer'
+import nodemailer from 'nodemailer'
 
 const app = express()
 app.use(cors())
@@ -13,7 +14,7 @@ app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
 
 const DB_FILE = './db.sqlite'
-const SECRET = 'demo_secret_key_v1'
+const SECRET = process.env.JWT_SECRET || 'demo_secret_key_v2'
 
 if (!fs.existsSync('./uploads')) fs.mkdirSync('./uploads')
 if (!fs.existsSync('./client')) fs.mkdirSync('./client')
@@ -29,6 +30,22 @@ if (!admin) {
   console.log('Demo admin created: demo@vialogues.local / admin123')
 }
 
+let transporter = null
+if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
+  transporter = nodemailer.createTransport({
+    host: process.env.SMTP_HOST,
+    port: Number(process.env.SMTP_PORT) || 587,
+    secure: false,
+    auth: {
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASS
+    }
+  })
+  console.log('Nodemailer configured')
+} else {
+  console.log('Nodemailer not configured - mail notifications disabled')
+}
+
 function auth(req, res, next) {
   const header = req.headers.authorization
   if (!header) return res.status(401).json({ error: 'Missing token' })
@@ -39,6 +56,31 @@ function auth(req, res, next) {
     next()
   } catch (e) {
     return res.status(401).json({ error: 'Invalid token' })
+  }
+}
+
+function genCode() {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+  let s = ''
+  for (let i=0;i<6;i++) s += chars.charAt(Math.floor(Math.random()*chars.length))
+  return 'PRJ-' + s
+}
+
+async function notifyProjectMembers(projectId, subject, text) {
+  if (!transporter) return
+  const rows = db.prepare('SELECT u.email FROM users u JOIN project_members pm ON u.id = pm.user_id WHERE pm.project_id = ?').all(projectId)
+  const emails = rows.map(r=>r.email).filter(Boolean)
+  if (!emails.length) return
+  const mail = {
+    from: process.env.SMTP_FROM || process.env.SMTP_USER,
+    to: emails.join(','),
+    subject,
+    text
+  }
+  try {
+    await transporter.sendMail(mail)
+  } catch (e) {
+    console.error('Failed to send mail', e)
   }
 }
 
@@ -59,9 +101,17 @@ app.get('/api/projects', auth, (req, res) => {
 
 app.post('/api/projects', auth, (req, res) => {
   const { title, description } = req.body
-  const info = db.prepare('INSERT INTO projects (title, description) VALUES (?, ?)').run(title, description)
+  const code = genCode()
+  const info = db.prepare('INSERT INTO projects (title, description, code) VALUES (?, ?, ?)').run(title, description, code)
   const project = db.prepare('SELECT * FROM projects WHERE id = ?').get(info.lastInsertRowid)
+  db.prepare('INSERT INTO project_members (project_id, user_id, role) VALUES (?, ?, ?)').run(project.id, req.user.id, 'owner')
   res.json(project)
+})
+
+app.get('/api/projects/code/:code', auth, (req, res) => {
+  const p = db.prepare('SELECT * FROM projects WHERE code = ?').get(req.params.code)
+  if (!p) return res.status(404).json({ error: 'Not found' })
+  res.json(p)
 })
 
 const storage = multer.diskStorage({
@@ -94,10 +144,26 @@ app.get('/uploads/:filename', (req, res) => {
   res.sendFile(path.resolve(fp))
 })
 
-app.post('/api/annotations', auth, (req, res) => {
-  const { video_id, time_seconds, content } = req.body
-  const info = db.prepare('INSERT INTO annotations (video_id, user_id, time_seconds, content) VALUES (?, ?, ?, ?)').run(video_id, req.user.id, time_seconds, content)
+app.post('/api/annotations', auth, async (req, res) => {
+  const { video_id, time_seconds, content, category, parent_id } = req.body
+  const info = db.prepare('INSERT INTO annotations (video_id, user_id, time_seconds, content, category, parent_id) VALUES (?, ?, ?, ?, ?, ?)').run(video_id, req.user.id, time_seconds, content, category || null, parent_id || null)
   const a = db.prepare('SELECT a.*, u.display_name FROM annotations a LEFT JOIN users u ON a.user_id=u.id WHERE a.id = ?').get(info.lastInsertRowid)
+  try {
+    const video = db.prepare('SELECT * FROM videos WHERE id = ?').get(video_id)
+    if (video) {
+      const projectId = video.project_id
+      const subject = `Nouvelle annotation sur le projet ${projectId}`
+      const text = `${req.user.display_name || req.user.email} a ajouté une annotation au temps ${time_seconds}s :
+
+${content}
+
+Video: ${video.title || video.filename}
+Project ID: ${projectId}`
+      await notifyProjectMembers(projectId, subject, text)
+    }
+  } catch (e) {
+    console.error('Notification error', e)
+  }
   res.json(a)
 })
 
