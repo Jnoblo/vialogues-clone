@@ -1,11 +1,8 @@
 {
-  "name": "vialogues-v4-admin-invite",
-  "version": "0.4.0",
-  "main": "index.js",
+  "name": "vialogues-v5",
+  "version": "5.0.0",
   "type": "module",
-  "scripts": {
-    "start": "node index.js"
-  },
+  "main": "index.js",
   "dependencies": {
     "express": "^4.18.2",
     "cors": "^2.8.5",
